@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { View, Text, Button, StyleSheet, Image, ActivityIndicator, Alert } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import * as ImagePicker from 'expo-image-picker';
@@ -31,6 +31,16 @@ export default function AddEntryScreen({ navigation }: Props) {
   const [address, setAddress] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
+  // Request notification permissions on mount
+  useEffect(() => {
+    (async () => {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Notification permissions not granted');
+      }
+    })();
+  }, []);
+
   const takePictureAndGetLocation = async () => {
     try {
       // 1. Request Camera Permissions & Take Picture
@@ -50,7 +60,7 @@ export default function AddEntryScreen({ navigation }: Props) {
       setImageUri(result.assets[0].uri);
       setIsLoading(true);
 
-      // 2. Request Location Permissions & Get Address
+      // 2. Request Location Permissions & Get Address (Automatic Reverse Geocoding)
       const locationPerm = await Location.requestForegroundPermissionsAsync();
       if (locationPerm.status !== 'granted') {
         Alert.alert('Permission Denied', 'Location permission is required to save the address.');
@@ -69,6 +79,7 @@ export default function AddEntryScreen({ navigation }: Props) {
 
       if (reverseGeocode.length > 0) {
         const place = reverseGeocode[0];
+        // Formatting the address automatically
         const formattedAddress = `${place.name ? place.name + ', ' : ''}${place.city || ''}, ${place.region || ''}`;
         setAddress(formattedAddress);
       } else {
@@ -84,32 +95,35 @@ export default function AddEntryScreen({ navigation }: Props) {
 
   const handleSave = async () => {
     if (!imageUri || !address) {
-      Alert.alert('Missing Data', 'Please take a picture to get your location before saving.');
+      Alert.alert("Error", "Please take a photo and wait for the address to load.");
       return;
     }
 
-    // Create a new entry object
     const newEntry: TravelEntry = {
-      id: Date.now().toString(), // Simple unique ID generator
+      id: Date.now().toString(),
       imageUri,
       address,
     };
 
-    // Save to AsyncStorage
-    await saveEntry(newEntry);
+    try {
+      // 1. Save to AsyncStorage
+      await saveEntry(newEntry);
 
-    // Send Local Push Notification
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Entry Saved!',
-        body: `Your travel memory at ${address} has been recorded.`,
-        sound: 'default',
-      },
-      trigger: null, // trigger immediately
-    });
+      // 2. Send the Local Notification
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Travel Entry Saved! 📸",
+          body: `New memory added at ${address}`,
+          sound: 'default',
+        },
+        trigger: null, // Send immediately
+      });
 
-    // Go back to the Home screen
-    navigation.goBack();
+      // 3. Navigate back to Home (This clears the screen state)
+      navigation.goBack();
+    } catch (error) {
+      Alert.alert("Error", "Failed to save the entry.");
+    }
   };
 
   return (
@@ -130,14 +144,18 @@ export default function AddEntryScreen({ navigation }: Props) {
               <ActivityIndicator size="large" color="#0000ff" style={styles.loader} />
             ) : (
               <Text style={[styles.addressText, { color: isDarkMode ? '#fff' : '#000' }]}>
-                📍 {address}
+                📍 {address || 'Fetching address...'}
               </Text>
             )}
 
             <View style={styles.actionButtons}>
-              <Button title="Retake Picture" onPress={takePictureAndGetLocation} color="#888" />
+              <Button title="Retake" onPress={takePictureAndGetLocation} color="#888" />
               <View style={{ width: 10 }} />
-              <Button title="Save Entry" onPress={handleSave} disabled={isLoading || !address} />
+              <Button 
+                title="Save Entry" 
+                onPress={handleSave} 
+                disabled={isLoading || !address} 
+              />
             </View>
           </View>
         )}
@@ -154,5 +172,5 @@ const styles = StyleSheet.create({
   image: { width: 300, height: 300, borderRadius: 10, marginBottom: 20 },
   loader: { marginVertical: 20 },
   addressText: { fontSize: 16, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },
-  actionButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
+  actionButtons: { flexDirection: 'row', justifyContent: 'center', marginTop: 10 },
 });

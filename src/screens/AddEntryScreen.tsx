@@ -1,176 +1,232 @@
-import React, { useContext, useState, useEffect } from 'react';
-import { View, Text, Button, StyleSheet, Image, ActivityIndicator, Alert } from 'react-native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
-import * as Notifications from 'expo-notifications';
-import { RootStackParamList, TravelEntry } from '../types';
-import { ThemeContext } from '../context/ThemeContext';
-import { saveEntry } from '../utils/storage';
+import React, { useState, useContext } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import * as Location from "expo-location";
+import * as Notifications from "expo-notifications";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { RootStackParamList } from "../types";
+import { ThemeContext } from "../context/ThemeContext";
+import { saveEntry } from "../utils/storage";
 
-// Ensure notifications show up even when the app is in the foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
-
-type AddEntryScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AddEntry'>;
+type AddEntryScreenNavigationProp = StackNavigationProp<
+  RootStackParamList,
+  "AddEntry"
+>;
 
 interface Props {
   navigation: AddEntryScreenNavigationProp;
 }
 
-export default function AddEntryScreen({ navigation }: Props) {
+const AddEntryScreen: React.FC<Props> = ({ navigation }) => {
   const { isDarkMode } = useContext(ThemeContext);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [address, setAddress] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false);
 
-  // Request notification permissions on mount
-  useEffect(() => {
-    (async () => {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== 'granted') {
-        console.log('Notification permissions not granted');
-      }
-    })();
-  }, []);
+  const takePhoto = async () => {
+    const { status: camStatus } =
+      await ImagePicker.requestCameraPermissionsAsync();
+    const { status: locStatus } =
+      await Location.requestForegroundPermissionsAsync();
 
-  const takePictureAndGetLocation = async () => {
-    try {
-      // 1. Request Camera Permissions & Take Picture
-      const cameraPerm = await ImagePicker.requestCameraPermissionsAsync();
-      if (cameraPerm.status !== 'granted') {
-        Alert.alert('Permission Denied', 'Camera permission is required.');
-        return;
-      }
+    if (camStatus !== "granted" || locStatus !== "granted") {
+      Alert.alert(
+        "Permission Required",
+        "Camera and Location access are needed.",
+      );
+      return;
+    }
 
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        quality: 1,
-      });
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.7,
+    });
 
-      if (result.canceled) return;
-      
+    if (!result.canceled) {
       setImageUri(result.assets[0].uri);
-      setIsLoading(true);
+      fetchAddress();
+    }
+  };
 
-      // 2. Request Location Permissions & Get Address (Automatic Reverse Geocoding)
-      const locationPerm = await Location.requestForegroundPermissionsAsync();
-      if (locationPerm.status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required to save the address.');
-        setIsLoading(false);
-        return;
-      }
-
-      const locationData = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-
+  const fetchAddress = async () => {
+    setLoading(true);
+    try {
+      const location = await Location.getCurrentPositionAsync({});
       const reverseGeocode = await Location.reverseGeocodeAsync({
-        latitude: locationData.coords.latitude,
-        longitude: locationData.coords.longitude,
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
       });
 
       if (reverseGeocode.length > 0) {
-        const place = reverseGeocode[0];
-        // Formatting the address automatically
-        const formattedAddress = `${place.name ? place.name + ', ' : ''}${place.city || ''}, ${place.region || ''}`;
-        setAddress(formattedAddress);
-      } else {
-        setAddress('Address not found');
+        const { name, street, city, region } = reverseGeocode[0];
+        setAddress(`${name || street}, ${city}, ${region}`);
       }
     } catch (error) {
-      Alert.alert('Error', 'Something went wrong while fetching data.');
-      console.error(error);
+      setAddress("Unknown Location");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   const handleSave = async () => {
     if (!imageUri || !address) {
-      Alert.alert("Error", "Please take a photo and wait for the address to load.");
+      Alert.alert("Error", "Please take a photo first.");
       return;
     }
 
-    const newEntry: TravelEntry = {
+    const newEntry = {
       id: Date.now().toString(),
       imageUri,
       address,
+      timestamp: new Date().toLocaleString(),
     };
 
-    try {
-      // 1. Save to AsyncStorage
-      await saveEntry(newEntry);
+    await saveEntry(newEntry);
 
-      // 2. Send the Local Notification
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "Travel Entry Saved! 📸",
-          body: `New memory added at ${address}`,
-          sound: 'default',
-        },
-        trigger: null, // Send immediately
-      });
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Travel Entry Saved! 📍",
+        body: `New memory added at ${address}`,
+      },
+      trigger: null,
+    });
 
-      // 3. Navigate back to Home (This clears the screen state)
-      navigation.goBack();
-    } catch (error) {
-      Alert.alert("Error", "Failed to save the entry.");
-    }
+    navigation.goBack();
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: isDarkMode ? '#333' : '#fff' }]}>
+    <ScrollView
+      style={[
+        styles.main,
+        { backgroundColor: isDarkMode ? "#121212" : "#F5F5F5" },
+      ]}
+      contentContainerStyle={styles.container}
+    >
       <View style={styles.content}>
-        {!imageUri ? (
-          <View style={styles.placeholder}>
-            <Text style={{ color: isDarkMode ? '#ccc' : '#666', marginBottom: 20 }}>
-              No picture taken yet.
+        <View
+          style={[
+            styles.photoBox,
+            { backgroundColor: isDarkMode ? "#1E1E1E" : "#E0E0E0" },
+          ]}
+        >
+          {imageUri ? (
+            <Image
+              source={{ uri: imageUri }}
+              style={styles.image}
+              resizeMode="cover"
+            />
+          ) : (
+            <Text style={{ color: isDarkMode ? "#888" : "#999" }}>
+              No Photo Taken
             </Text>
-            <Button title="Open Camera" onPress={takePictureAndGetLocation} />
-          </View>
-        ) : (
-          <View style={styles.previewContainer}>
-            <Image source={{ uri: imageUri }} style={styles.image} />
-            
-            {isLoading ? (
-              <ActivityIndicator size="large" color="#0000ff" style={styles.loader} />
-            ) : (
-              <Text style={[styles.addressText, { color: isDarkMode ? '#fff' : '#000' }]}>
-                📍 {address || 'Fetching address...'}
-              </Text>
-            )}
+          )}
+        </View>
 
-            <View style={styles.actionButtons}>
-              <Button title="Retake" onPress={takePictureAndGetLocation} color="#888" />
-              <View style={{ width: 10 }} />
-              <Button 
-                title="Save Entry" 
-                onPress={handleSave} 
-                disabled={isLoading || !address} 
-              />
-            </View>
+        {loading && (
+          <View style={styles.loader}>
+            <ActivityIndicator size="large" color="#6200EE" />
+            <Text style={{ color: isDarkMode ? "#AAA" : "#666" }}>
+              Fetching Address...
+            </Text>
           </View>
         )}
+
+        {address && (
+          <View
+            style={[
+              styles.addressContainer,
+              { backgroundColor: isDarkMode ? "#1E1E1E" : "#FFF" },
+            ]}
+          >
+            <Text style={styles.addressLabel}>LOCATION</Text>
+            <Text
+              style={[
+                styles.addressText,
+                { color: isDarkMode ? "#FFF" : "#333" },
+              ]}
+            >
+              {address}
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.actionButtons}>
+          <TouchableOpacity style={styles.primaryBtn} onPress={takePhoto}>
+            <Text style={styles.btnText}>
+              {imageUri ? "Retake Photo" : "Take Photo"}
+            </Text>
+          </TouchableOpacity>
+
+          {imageUri && (
+            <TouchableOpacity style={styles.secondaryBtn} onPress={handleSave}>
+              <Text style={styles.btnText}>Save Entry</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
-    </View>
+    </ScrollView>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { flex: 1, padding: 20, justifyContent: 'center', alignItems: 'center' },
-  placeholder: { alignItems: 'center' },
-  previewContainer: { alignItems: 'center', width: '100%' },
-  image: { width: 300, height: 300, borderRadius: 10, marginBottom: 20 },
-  loader: { marginVertical: 20 },
-  addressText: { fontSize: 16, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },
-  actionButtons: { flexDirection: 'row', justifyContent: 'center', marginTop: 10 },
+  main: { flex: 1 },
+  container: {
+    padding: 20,
+    paddingBottom: 60, // Ensures space for buttons at the bottom
+    alignItems: "center",
+  },
+  content: { width: "100%", alignItems: "center" },
+  photoBox: {
+    width: "100%",
+    height: 250, // Slightly shorter height to fit better on screen
+    borderRadius: 15,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+    overflow: "hidden",
+    elevation: 2,
+  },
+  image: { width: "100%", height: "100%" },
+  loader: { marginVertical: 20, alignItems: "center" },
+  addressContainer: {
+    width: "100%",
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 25,
+    elevation: 1,
+  },
+  addressLabel: {
+    fontWeight: "bold",
+    fontSize: 10,
+    color: "#6200EE",
+    marginBottom: 5,
+  },
+  addressText: { fontSize: 16, fontWeight: "500" },
+  actionButtons: { width: "50%" },
+  primaryBtn: {
+    backgroundColor: "#6200EE",
+    padding: 18,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  secondaryBtn: {
+    backgroundColor: "#03DAC6",
+    padding: 18,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  btnText: { color: "#FFF", fontWeight: "bold", fontSize: 16 },
 });
+
+export default AddEntryScreen;

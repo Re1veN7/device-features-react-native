@@ -1,6 +1,6 @@
 // Dark/Light mode context
-import React, { createContext, useState, useEffect, ReactNode } from 'react';
-import { useColorScheme } from 'react-native';
+import React, { createContext, useState, useEffect, ReactNode } from "react";
+import { useColorScheme } from "react-native";
 
 interface ThemeContextType {
   isDarkMode: boolean;
@@ -14,7 +14,7 @@ export const ThemeContext = createContext<ThemeContextType>({
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const systemTheme = useColorScheme();
-  const [isDarkMode, setIsDarkMode] = useState(systemTheme === 'dark');
+  const [isDarkMode, setIsDarkMode] = useState(systemTheme === "dark");
 
   const toggleTheme = () => setIsDarkMode((prev) => !prev);
 

@@ -35,3 +35,9 @@ export const deleteEntry = async (idToRemove: string): Promise<void> => {
     console.error('Failed to delete the entry.', e);
   }
 };
+
+// Get all entries
+export const getEntries = async () => {
+  const data = await AsyncStorage.getItem(STORAGE_KEY);
+  return data ? JSON.parse(data) : [];
+};

@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native-stack';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from './src/types';
 import { ThemeProvider, ThemeContext } from './src/context/ThemeContext';

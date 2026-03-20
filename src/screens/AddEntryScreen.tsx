@@ -97,6 +97,7 @@ const AddEntryScreen: React.FC<Props> = ({ navigation }) => {
       content: {
         title: "Travel Entry Saved! 📍",
         body: `New memory added at ${address}`,
+        sound: true,
       },
       trigger: null,
     });

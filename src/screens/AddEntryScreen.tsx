@@ -1,6 +1,6 @@
 import React, { useContext, useState } from 'react';
 import { View, Text, Button, StyleSheet, Image, ActivityIndicator, Alert } from 'react-native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { StackNavigationProp } from '@react-navigation/stack';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
@@ -19,7 +19,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-type AddEntryScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddEntry'>;
+type AddEntryScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AddEntry'>;
 
 interface Props {
   navigation: AddEntryScreenNavigationProp;

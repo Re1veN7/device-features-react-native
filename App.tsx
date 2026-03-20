@@ -1,15 +1,15 @@
+import 'react-native-gesture-handler';
 import React, { useContext } from 'react';
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
 import { RootStackParamList } from './src/types';
 import { ThemeProvider, ThemeContext } from './src/context/ThemeContext';
 
 import HomeScreen from './src/screens/HomeScreen';
 import AddEntryScreen from './src/screens/AddEntryScreen';
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+const Stack = createStackNavigator<RootStackParamList>();
 
-// A wrapper component to consume the theme context for React Navigation
 function NavigationWrapper() {
   const { isDarkMode } = useContext(ThemeContext);
 
@@ -25,7 +25,7 @@ function NavigationWrapper() {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
-          contentStyle: { backgroundColor: isDarkMode ? '#333' : '#fff' }
+          cardStyle: { backgroundColor: isDarkMode ? '#333' : '#fff' }
         }}
       >
         <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'Travel Diary' }} />

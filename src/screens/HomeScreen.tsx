@@ -1,12 +1,12 @@
 import React, { useContext, useState, useCallback } from 'react';
 import { View, Text, Button, StyleSheet, FlatList, Image, TouchableOpacity } from 'react-native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList, TravelEntry } from '../types';
 import { ThemeContext } from '../context/ThemeContext';
 import { loadEntries, deleteEntry } from '../utils/storage';
 
-type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
+type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 interface Props {
   navigation: HomeScreenNavigationProp;

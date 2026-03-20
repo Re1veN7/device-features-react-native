@@ -1,20 +1,44 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useContext } from 'react';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native-stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { RootStackParamList } from './src/types';
+import { ThemeProvider, ThemeContext } from './src/context/ThemeContext';
 
-export default function App() {
+import HomeScreen from './src/screens/HomeScreen';
+import AddEntryScreen from './src/screens/AddEntryScreen';
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// A wrapper component to consume the theme context for React Navigation
+function NavigationWrapper() {
+  const { isDarkMode } = useContext(ThemeContext);
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <NavigationContainer>
+      <Stack.Navigator 
+        initialRouteName="Home"
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: isDarkMode ? '#222' : '#f4511e',
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+          contentStyle: { backgroundColor: isDarkMode ? '#333' : '#fff' }
+        }}
+      >
+        <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'Travel Diary' }} />
+        <Stack.Screen name="AddEntry" component={AddEntryScreen} options={{ title: 'Add Entry' }} />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+export default function App() {
+  return (
+    <ThemeProvider>
+      <NavigationWrapper />
+    </ThemeProvider>
+  );
+}
